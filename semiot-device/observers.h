@@ -7,13 +7,14 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
-    
+
 #include "microcoap.h"
     
-#define MAX_OBSERVERS_COUNT 23 // FIXME
+#define MAX_OBSERVERS_COUNT 2 // FIXME
 
 // http://tools.ietf.org/html/draft-ietf-core-observe-16
 
+// TODO: how about IPAddress.h instead of char*?
 typedef struct coap_observer_t
 {
     char* hostName;

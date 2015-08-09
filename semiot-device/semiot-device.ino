@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 
 #include <Ticker.h>
 #include <SPI.h>
@@ -38,7 +39,6 @@ String _cstrToString(char* buffer, unsigned int bufferPos)
 
 //TODO: move to microcoap.h:
 // saving the uri path from pkt_p:
-// FIXME: overwrite completely:
 void _parse_uri_path_opt(coap_packet_t* pkt_p, coap_endpoint_path_t* dest) {
     unsigned int opt_count = pkt_p->numopts;
     unsigned int segm_count = 0;
@@ -47,8 +47,6 @@ void _parse_uri_path_opt(coap_packet_t* pkt_p, coap_endpoint_path_t* dest) {
     for (opt_i=0;opt_i<opt_count;opt_i++) {
         if (pkt_p->opts[opt_i].num==COAP_OPTION_URI_PATH) {
             segment_lengh = pkt_p->opts[opt_i].buf.len;
-            //Serial.print("segment_lengh: ");
-            //Serial.println(segment_lengh,DEC);
             int buflen = pkt_p->opts[opt_i].buf.len;
             const uint8_t* buf = pkt_p->opts[opt_i].buf.p;
             char segment[buflen];
@@ -56,16 +54,10 @@ void _parse_uri_path_opt(coap_packet_t* pkt_p, coap_endpoint_path_t* dest) {
             while(buflen--) {
                 uint8_t x = *buf++;
                 char c = char(x);
-                //Serial.print(char(c));
-                //Serial.print(" ");
                 segment[segm_i]=c;
                 segm_i++;
             }
-            //Serial.print("\n");
-            //FIXME: get rid of String:
-            String string = _cstrToString(segment,segment_lengh);
-            dest->elems[segm_count]=(char*)calloc(segment_lengh+1,sizeof(char));
-            strncpy((char *)dest->elems[segm_count], string.c_str(), segment_lengh);
+            memcpy((char *)dest->elems[segm_count], (const char*)&segment, segment_lengh);
             segm_count+=1;
         }
     }
@@ -105,18 +97,28 @@ void setup()
 {
     Serial.begin(SERIAL_BAUDRATE);
     Serial.print("setup...\r\n");
-    setupESP8266();
-    ticker.attach(2, _tick); // 2 seconds
-    coap_setup();
-    endpoint_setup();
+    //setupESP8266();
+    //ticker.attach(2, _tick); // 2 seconds
+    ///coap_setup();
+    //endpoint_setup();
     Serial.println("ready");
 }
 
 //FIXME: get rif of:
 // TODO
 IPAddress _ipAddressFromString(String hostname) {
-    return IPAddress(255,255,255,255);
-        
+    IPAddress _address; 
+    os_sprintf((char*)hostname.c_str(), "%u.%u.%u.%u", _address[0], _address[1], &_address[2], _address[3]);
+    return _address;
+}
+
+// FIXME: pointer to IPAddress maybe?
+char* _ipAddresstoString(IPAddress _address)
+{
+    char szIPAddress[20];
+    memset(szIPAddress, 0, sizeof(szIPAddress));
+    sprintf(szIPAddress, "%u.%u.%u.%u", _address[0], _address[1], _address[2], _address[3]);
+    return szIPAddress;
 }
 
 void _udp_send(const uint8_t *buf, int buflen, String host_name = HOST_NAME, long unsigned int host_port=HOST_PORT)
@@ -140,6 +142,11 @@ static uint8_t scratch_raw[UDP_TX_PACKET_MAX_SIZE];
 static coap_rw_buffer_t scratch_buf = {scratch_raw, sizeof(scratch_raw)};
 //size_t rsplen; //TODO:
 
+void _addTickCountToOpt(coap_buffer_t* buf) {
+    buf->p = &count;
+    buf->len=sizeof(count);
+}
+
 
 void _sendCoAPpkt(coap_packet_t* pkt_p, String hostName = "", long unsigned int port = 0, bool addTick=false)
 {
@@ -148,9 +155,10 @@ void _sendCoAPpkt(coap_packet_t* pkt_p, String hostName = "", long unsigned int 
         coap_handle_req(&scratch_buf, pkt_p, &rsppkt);
     }
     else {
-	// FIXME: separate count tick adding
-        rsppkt.opts[0].buf.p = &count;
-        rsppkt.opts[0].buf.len = sizeof(count);
+	// FIXED:
+        //rsppkt.opts[0].buf.p = &count;
+        //rsppkt.opts[0].buf.len = sizeof(count);
+	_addTickCountToOpt(&rsppkt.opts[0].buf);
         rsppkt.hdr.id[0]++;
         rsppkt.hdr.id[1]++;
         memcpy(&rsppkt, pkt_p, sizeof(pkt_p));
@@ -202,9 +210,10 @@ bool _coapSubscribe(coap_packet_t* pkt_p, String* hostName, long unsigned int* p
     rsppkt.opts[1].buf.p = rsppkt.opts[0].buf.p;
     rsppkt.opts[1].buf.len = rsppkt.opts[0].buf.len;
     rsppkt.opts[0].num = COAP_OPTION_OBSERVE;
-    // TODO: separate add count function
-    rsppkt.opts[0].buf.p = &count;
-    rsppkt.opts[0].buf.len = sizeof(count);
+    // FIXED:
+    //rsppkt.opts[0].buf.p = &count;
+    //rsppkt.opts[0].buf.len = sizeof(count);
+    _addTickCountToOpt(&rsppkt.opts[0].buf);
     if (0 != (rc = coap_build(buffer, &rsplen, &rsppkt))) {
         Serial.print("coap_build failed rc=");
         Serial.println(rc, DEC);
@@ -225,18 +234,6 @@ bool _coapSubscribe(coap_packet_t* pkt_p, String* hostName, long unsigned int* p
         return true;
     }
     return false;
-}
-
-//FIXME: get rid of strings:
-char* _ipAddresstoString(IPAddress _address)
-{
-    char szIPAddress[20];
-    
-    memset(szIPAddress, 0, sizeof(szIPAddress));
-    
-    sprintf(szIPAddress, "%u.%u.%u.%u", _address[0], _address[1], _address[2], _address[3]);
-    
-    return szIPAddress;
 }
 
 void _saveCurrentClientInfo() {
@@ -293,27 +290,6 @@ void listenCoAP()
     }
 }
 
-/*
-//FIXME:
-bool is_coap_endpoint_path_t_eq(const coap_endpoint_path_t* a, const coap_endpoint_path_t* b) {
-    bool eq = false;
-    unsigned int count = a->count;
-    
-    if (count==b->count) {
-        unsigned int i;
-        for (i=0;i<count;i++) {
-            if (strcmp(a->elems[i], b->elems[i]) != 0) {
-                return eq;
-            }
-        }
-        eq = true;
-        return eq;
-    }
-    return eq;
-}
-*/
-
-
 void sendToObservers()
 {
     int i;
@@ -333,8 +309,6 @@ void sendToObservers()
                 should_send=true;
 		count_changed=false;
             }
-            //Serial.println(should_send, DEC);
-            //Serial.println(h, DEC);
             if (should_send) {
                 _sendCoAPpkt(&observers[i].answer_draft_pkt, _cstrToString(observers[i].hostName, observers[i].hostNameLenght), observers[i].port,true);
             }
@@ -345,6 +319,6 @@ void sendToObservers()
 void loop()
 {
     //TODO: add observers checker;
-    listenCoAP(); // listen always;
-    sendToObservers(); // sending only when apropriate data is changed
+    //listenCoAP(); // listen always;
+    //sendToObservers(); // sending only when apropriate data is changed
 }

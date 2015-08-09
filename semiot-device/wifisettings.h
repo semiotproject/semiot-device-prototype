@@ -1,7 +1,7 @@
 #ifndef   WIFISETTINGS_H
 #define   WIFISETTINGS_H
 
-#define SSID "Tamriel"
-#define PASSWORD "rfhnjirf" 
+#define SSID "Liteynyi 46-70"
+#define PASSWORD "gosti2015" 
 
 #endif // WIFISETTINGS_H

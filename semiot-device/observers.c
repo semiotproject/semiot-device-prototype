@@ -5,7 +5,7 @@ int addCoAPObserver(const char* hostName,unsigned int hostNameLenght, long unsig
 {
     if ( observersCount < MAX_OBSERVERS_COUNT )
     {
-        // TODO: update by token
+	// warning: initialization discards 'const' qualifier from pointer target type [enabled by default]
         observers[observersCount]=(coap_observer_t){hostName, hostNameLenght, *port, pkt,*path};
         observersCount+=1;
         return observersCount;
@@ -42,7 +42,7 @@ unsigned int getObserversCount()
     return observersCount;
 }
 
-void delete_item(struct coap_observer_t *p,int *num_items, int item)
+void delete_item(struct coap_observer_t *p,int* num_items, int item)
 {
 
     if (*num_items > 0 && item < *num_items && item > -1) {
