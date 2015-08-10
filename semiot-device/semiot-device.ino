@@ -6,7 +6,7 @@
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 #include <stdint.h>
-#include <IPAddress.h> // FIXME: get rid of saving IP address into string
+#include <IPAddress.h>
 
 #include "microcoap.h"
 #include "endpoints.h" // https://github.com/semiotproject/microcoap
@@ -16,7 +16,9 @@
 //#define UDP_TX_PACKET_MAX_SIZE 860 // FIXME: extern to 2048B or 8192?
 
 // current client's host name and port
-String HOST_NAME;
+#define ip_str_max_lenght 16
+char _host_buf[ip_str_max_lenght];
+char* HOST_NAME=(char*)&_host_buf;
 long unsigned int HOST_PORT = 5683;
 
 uint8_t count=0;
@@ -25,17 +27,6 @@ bool count_changed;
 Ticker ticker;
 WiFiClient client;
 WiFiUDP udp;
-
-// FIXME: get rid of Strings:
-String _cstrToString(char* buffer, unsigned int bufferPos)
-{
-    String item;
-    unsigned int k;
-    for (int k = 0; k < bufferPos; k++) {
-        item += String(buffer[k]);
-    }
-    return item;
-}
 
 //TODO: move to microcoap.h:
 // saving the uri path from pkt_p:
@@ -97,33 +88,33 @@ void setup()
 {
     Serial.begin(SERIAL_BAUDRATE);
     Serial.print("setup...\r\n");
-    //setupESP8266();
-    //ticker.attach(2, _tick); // 2 seconds
-    ///coap_setup();
-    //endpoint_setup();
+    setupESP8266();
+    ticker.attach(2, _tick); // 2 seconds
+    coap_setup();
+    endpoint_setup();
     Serial.println("ready");
 }
 
-//FIXME: get rif of:
+//FIXME: get rif of:memcpy
 // TODO
-IPAddress _ipAddressFromString(String hostname) {
+IPAddress _ipAddressFromString(char* hostname) {
     IPAddress _address; 
-    os_sprintf((char*)hostname.c_str(), "%u.%u.%u.%u", _address[0], _address[1], &_address[2], _address[3]);
+    os_sprintf(hostname, "%u.%u.%u.%u", _address[0], _address[1], &_address[2], _address[3]);
     return _address;
 }
 
 // FIXME: pointer to IPAddress maybe?
 char* _ipAddresstoString(IPAddress _address)
 {
-    char szIPAddress[20];
+    char szIPAddress[ip_str_max_lenght];
     memset(szIPAddress, 0, sizeof(szIPAddress));
     sprintf(szIPAddress, "%u.%u.%u.%u", _address[0], _address[1], _address[2], _address[3]);
     return szIPAddress;
 }
 
-void _udp_send(const uint8_t *buf, int buflen, String host_name = HOST_NAME, long unsigned int host_port=HOST_PORT)
+void _udp_send(const uint8_t *buf, int buflen, char* host_name = HOST_NAME, long unsigned int host_port=HOST_PORT)
 {
-    udp.beginPacket(_ipAddressFromString(host_name), host_port);
+    udp.beginPacket(_ipAddressFromString((char*)host_name), host_port);
     while(buflen--)
 	udp.write(*buf++);
     udp.endPacket();
@@ -148,7 +139,7 @@ void _addTickCountToOpt(coap_buffer_t* buf) {
 }
 
 
-void _sendCoAPpkt(coap_packet_t* pkt_p, String hostName = "", long unsigned int port = 0, bool addTick=false)
+void _sendCoAPpkt(coap_packet_t* pkt_p, char* hostName, long unsigned int port, bool addTick=false)
 {
     size_t rsplen = sizeof(buffer);
     if (!addTick) {
@@ -168,18 +159,18 @@ void _sendCoAPpkt(coap_packet_t* pkt_p, String hostName = "", long unsigned int 
         Serial.println(rc, DEC);
     }
     else {
-        _udp_send(buffer, rsplen);
+        _udp_send(buffer, rsplen, hostName, port);
         Serial.println("Answer sended");
     }
 }
 
-bool _coapUnsubscribe(coap_packet_t* pkt_p, String* hostName, long unsigned int* port) {
+bool _coapUnsubscribe(coap_packet_t* pkt_p, char* hostName, long unsigned int* port) {
     coap_endpoint_path_t uri_path;
     _parse_uri_path_opt(pkt_p,&uri_path);
-    return removeCoApObserver(hostName->c_str(), hostName->length(), port, &uri_path);
+    return removeCoApObserver(hostName, port, &uri_path);
 }
 
-bool _coapSubscribe(coap_packet_t* pkt_p, String* hostName, long unsigned int* port)
+bool _coapSubscribe(coap_packet_t* pkt_p, char* hostName, long unsigned int* port)
 {
     /*
     Serial.println("dump:");
@@ -228,7 +219,7 @@ bool _coapSubscribe(coap_packet_t* pkt_p, String* hostName, long unsigned int* p
         Serial.println(uri_path.elems[0]);
         Serial.println(uri_path.elems[1]);
         */
-        if (addCoAPObserver(hostName->c_str(), hostName->length(), port, rsppkt,&uri_path)) {
+        if (addCoAPObserver(hostName, port, rsppkt,&uri_path)) {
             Serial.println("Oberver added");
         }
         return true;
@@ -237,7 +228,7 @@ bool _coapSubscribe(coap_packet_t* pkt_p, String* hostName, long unsigned int* p
 }
 
 void _saveCurrentClientInfo() {
-    HOST_NAME = _ipAddresstoString(udp.remoteIP());
+    memcpy(HOST_NAME, _ipAddresstoString(udp.remoteIP()), ip_str_max_lenght);
     HOST_PORT = udp.remotePort();
 }
 
@@ -247,6 +238,16 @@ void listenCoAP()
 {
     sz = udp.parsePacket();
     if (sz > 0) {
+	udp.read(buffer, sizeof(buffer));
+	int i;
+	
+	for (i=0;i<sz;i++)
+	{
+	    Serial.print(buffer[i], HEX);
+	    Serial.print(" ");
+	}
+	Serial.println("");
+	
         // prepare coap answer:
 	if (0 != (rc = coap_parse(&pkt, buffer, sz))) {
             Serial.print("Bad packet rc=");
@@ -254,9 +255,6 @@ void listenCoAP()
         }
         else {
             _saveCurrentClientInfo();
-            // FIXME: BAD: UGLY: REWRITE!
-            int o;
-            
             // cheking for observe option:
             uint8_t optionNumber;
             coap_buffer_t* val = NULL;
@@ -270,14 +268,14 @@ void listenCoAP()
             if (val != NULL) {
             // http://tools.ietf.org/html/draft-ietf-core-observe-16#section-2
                 if (val->len == 0) { // register
-                    if (_coapSubscribe(&pkt, &HOST_NAME, &HOST_PORT)) {
+		    if (_coapSubscribe(&pkt, (char*)&HOST_NAME, &HOST_PORT)) {
                         Serial.println("subscribe ok");
                     }
                 }
                 else {
                     if ((val->len == 1) && (*val->p==1)) {
                         //TODO:
-                        if (_coapUnsubscribe(&pkt,&HOST_NAME,&HOST_PORT)) {
+                        if (_coapUnsubscribe(&pkt,(char*)&HOST_NAME,&HOST_PORT)) {
                             Serial.println("unsubscribe ok");
                         }
                     }
@@ -305,13 +303,16 @@ void sendToObservers()
             bool should_send=false;
             unsigned int n = observers[i].path.count;
             unsigned n_i;
+	    /*
             if ((count_changed) && is_coap_endpoint_path_t_eq(&observers[i].path,&path_dht)) {
                 should_send=true;
 		count_changed=false;
             }
             if (should_send) {
-                _sendCoAPpkt(&observers[i].answer_draft_pkt, _cstrToString(observers[i].hostName, observers[i].hostNameLenght), observers[i].port,true);
+                _sendCoAPpkt(&observers[i].answer_draft_pkt, observers[i].hostName,observers[i].port,true);
             }
+            */
+	    //TODO:
         }
     }
 }
@@ -319,6 +320,6 @@ void sendToObservers()
 void loop()
 {
     //TODO: add observers checker;
-    //listenCoAP(); // listen always;
-    //sendToObservers(); // sending only when apropriate data is changed
+    listenCoAP(); // listen always;
+    sendToObservers(); // sending only when apropriate data is changed
 }

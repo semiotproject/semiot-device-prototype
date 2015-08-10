@@ -33,6 +33,7 @@ void endpoint_setup(void);
 static const coap_endpoint_path_t path_well_known_core = {2, {".well-known", "core"}};
 static int handle_get_well_known_core(coap_rw_buffer_t *scratch, const coap_packet_t *inpkt, coap_packet_t *outpkt, uint8_t id_hi, uint8_t id_lo);
 
+/*
 static const coap_endpoint_path_t path_light = {1, {"light"}};
 static int handle_get_light(coap_rw_buffer_t *scratch, const coap_packet_t *inpkt, coap_packet_t *outpkt, uint8_t id_hi, uint8_t id_lo);
 
@@ -47,18 +48,19 @@ static int handle_get_dht(coap_rw_buffer_t *scratch, const coap_packet_t *inpkt,
 static int handle_get_dht_temperature(coap_rw_buffer_t *scratch, const coap_packet_t *inpkt, coap_packet_t *outpkt, uint8_t id_hi, uint8_t id_lo);
 
 static int handle_get_dht_humidity(coap_rw_buffer_t *scratch, const coap_packet_t *inpkt, coap_packet_t *outpkt, uint8_t id_hi, uint8_t id_lo);
+*/
 
 // ";obs"-ending is important to observe work
 const coap_endpoint_t endpoints[] =
 {
     {COAP_METHOD_GET, handle_get_well_known_core, &path_well_known_core, "ct=40"},
 
-    {COAP_METHOD_GET, handle_get_light, &path_light, "ct=0"},
-    {COAP_METHOD_PUT, handle_put_light, &path_light, NULL},
+    //{COAP_METHOD_GET, handle_get_light, &path_light, "ct=0"},
+    //{COAP_METHOD_PUT, handle_put_light, &path_light, NULL},
 
-    {COAP_METHOD_GET, handle_get_dht, &path_dht, "ct=0;obs"},
-    {COAP_METHOD_GET, handle_get_dht_temperature, &path_dht_temperature, "ct=0;obs"},
-    {COAP_METHOD_GET, handle_get_dht_humidity, &path_dht_humidity, "ct=0;obs"},
+    //{COAP_METHOD_GET, handle_get_dht, &path_dht, "ct=0;obs"},
+    //{COAP_METHOD_GET, handle_get_dht_temperature, &path_dht_temperature, "ct=0;obs"},
+    //{COAP_METHOD_GET, handle_get_dht_humidity, &path_dht_humidity, "ct=0;obs"},
 
     {(coap_method_t)0, NULL, NULL, NULL}
 };

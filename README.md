@@ -5,6 +5,6 @@ and microcoap implementation with SemIoT observe patches
 
 #TODO:
 
-+ implement working version (fix memory problem)
++ implement working version (fix wrong socket parsing problem)
 + switch to [Bare Arduino Project](https://github.com/ladislas/Bare-Arduino-Project) (implement 
 platform.txt support for [Arduino-Makefile](https://github.com/sudar/Arduino-Makefile))
