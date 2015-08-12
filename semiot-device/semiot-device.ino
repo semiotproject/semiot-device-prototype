@@ -95,11 +95,39 @@ void setup()
     Serial.println("ready");
 }
 
-//FIXME: get rif of:memcpy
-// TODO
+//FIXME: https://github.com/esp8266/Arduino/issues/488
+//siscanf(hostname, "%d.%d.%d.%d\r\n", _address[0], _address[1], &_address[2], _address[3]);
 IPAddress _ipAddressFromString(char* hostname) {
-    IPAddress _address; 
-    os_sprintf(hostname, "%u.%u.%u.%u", _address[0], _address[1], &_address[2], _address[3]);
+    IPAddress _address;
+    String address = String(hostname);
+    String octade;
+    
+    octade = address.substring(0,address.indexOf("."));
+    _address[0] = octade.toInt();
+    address = address.substring(address.indexOf(".")+1,address.length());
+    
+    octade = address.substring(0,address.indexOf("."));
+    _address[1] = octade.toInt();
+    address = address.substring(address.indexOf(".")+1,address.length());
+    
+    octade = address.substring(0,address.indexOf("."));
+    _address[2] = octade.toInt();
+    address = address.substring(address.indexOf(".")+1,address.length());
+    
+    octade = address.substring(0,address.indexOf("."));
+    _address[3] = octade.toInt();
+    address = address.substring(address.indexOf(".")+1,address.length());
+    
+    /*
+    Serial.print(_address[0],DEC);
+    Serial.print('.');
+    Serial.print(_address[1],DEC);
+    Serial.print('.');
+    Serial.print(_address[2],DEC);
+    Serial.print('.');
+    Serial.println(_address[3],DEC);
+    */
+    
     return _address;
 }
 
