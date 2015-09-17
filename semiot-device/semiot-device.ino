@@ -1,16 +1,32 @@
-#include <stdlib.h>
-#include <stdio.h>
-
-#include <Ticker.h>
-#include <SPI.h>
-#include <ESP8266WiFi.h>
-#include <WiFiUdp.h>
-#include <stdint.h>
-#include <IPAddress.h>
-
+// https://github.com/semiotproject/microcoap
 #include "microcoap.h"
-#include "endpoints.h" // https://github.com/semiotproject/microcoap
+#include "endpoints.h"
 #include "observers.h"
+// ESP8266 Arduino firmware
+#ifdef ESP8266_ARDUINO_FIRMWARE
+
+  #include <stdlib.h>
+  #include <stdio.h>
+
+  #include <Ticker.h>
+  #include <SPI.h>
+  #include <ESP8266WiFi.h>
+  #include <WiFiUdp.h>
+  #include <stdint.h>
+  #include <IPAddress.h>
+
+#endif // ESP8266_ARDUINO_FIRMWARE
+
+// ESP8266_VIA_ARDUINO_SERIAL
+#ifdef ESP8266_VIA_ARDUINO_SERIAL
+
+  #include <SoftwareSerial.h>
+  #include "SparkFunESP8266WiFi.h"
+  #include "SparkFunESP8266UDP.h"
+  #include <IPAddress.h>
+
+#endif // ESP8266_VIA_ARDUINO_SERIAL
+
 #include "wifisettings.h"
 
 //#define UDP_TX_PACKET_MAX_SIZE 860 // FIXME: extern to 2048B or 8192?
@@ -22,11 +38,25 @@ char* HOST_NAME=(char*)&_host_buf;
 long unsigned int HOST_PORT = 5683;
 
 uint8_t count=0;
-bool count_changed;
-
+//TODO: implement without ticker
+/*
+//bool count_changed;
 Ticker ticker;
-WiFiClient client;
+*/
+
+#ifdef ESP8266_VIA_ARDUINO_SERIAL
+
+//WiFiClient client;
+ESP8266UDP udp;
+
+#endif
+
+#ifdef ESP8266_ARDUINO_FIRMWARE
+
+//WiFiClient client;
 WiFiUDP udp;
+
+#endif
 
 //TODO: move to microcoap.h:
 // saving the uri path from pkt_p:
@@ -57,31 +87,79 @@ void _parse_uri_path_opt(coap_packet_t* pkt_p, coap_endpoint_path_t* dest) {
 
 void setupESP8266()
 {
+    #ifdef ESP8266_ARDUINO_FIRMWARE
     // We start by connecting to a WiFi network
     Serial.println();
     Serial.println();
     Serial.print("Connecting to ");
     Serial.println(SSID);
-    
+
     WiFi.begin(SSID, PASSWORD);
-    
+
     while (WiFi.status() != WL_CONNECTED) {
 	delay(500);
 	Serial.print(".");
     }
-    
+
     Serial.println("");
-    Serial.println("WiFi connected");  
+    Serial.println("WiFi connected");
     Serial.println("IP address: ");
     Serial.println(WiFi.localIP());
-    
+
     // register udp
     udp.begin(COAP_PORT);
+    #endif
+
+    #ifdef ESP8266_VIA_ARDUINO_SERIAL
+      // The ESP8266 can be set to one of three modes:
+      //  1 - ESP8266_MODE_STA - Station only
+      //  2 - ESP8266_MODE_AP - Access point only
+      //  3 - ESP8266_MODE_STAAP - Station/AP combo
+      // Use esp8266.getMode() to check which mode it's in:
+      int retVal = esp8266.getMode();
+      if (retVal != ESP8266_MODE_STA)
+      { // If it's not in station mode.
+        // Use esp8266.setMode([mode]) to set it to a specified
+        // mode.
+        retVal = esp8266.setMode(ESP8266_MODE_STA);
+        if (retVal < 0)
+        {
+          Serial.println(F("Error setting mode."));
+          // errorLoop(retVal); //TODO:
+        }
+      }
+      Serial.println(F("Mode set to station"));
+
+      // esp8266.status() indicates the ESP8266's WiFi connect
+      // status.
+      // A return value of 1 indicates the device is already
+      // connected. 0 indicates disconnected. (Negative values
+      // equate to communication errors.)
+      retVal = esp8266.status();
+      if (retVal <= 0)
+      {
+        Serial.print(F("Connecting to "));
+        Serial.println(SSID);
+        // esp8266.connect([ssid], [psk]) connects the ESP8266
+        // to a network.
+        // On success the connect function returns a value >0
+        // On fail, the function will either return:
+        //  -1: TIMEOUT - The library has a set 30s timeout
+        //  -3: FAIL - Couldn't connect to network.
+        retVal = esp8266.connect(SSID, PASSWORD);
+        if (retVal < 0)
+        {
+          Serial.println(F("Error connecting"));
+          // errorLoop(retVal); //TODO
+        }
+      }
+
+    #endif
 }
 
 void _tick() {
     count++;
-    count_changed=true;
+    //count_changed=true;
 }
 
 void setup()
@@ -89,7 +167,8 @@ void setup()
     Serial.begin(SERIAL_BAUDRATE);
     Serial.print("setup...\r\n");
     setupESP8266();
-    ticker.attach(2, _tick); // 2 seconds
+    //TODO: implement without ticker
+    //ticker.attach(2, _tick); // 2 seconds
     coap_setup();
     endpoint_setup();
     Serial.println("ready");
@@ -101,23 +180,23 @@ IPAddress _ipAddressFromString(char* hostname) {
     IPAddress _address;
     String address = String(hostname);
     String octade;
-    
+
     octade = address.substring(0,address.indexOf("."));
     _address[0] = octade.toInt();
     address = address.substring(address.indexOf(".")+1,address.length());
-    
+
     octade = address.substring(0,address.indexOf("."));
     _address[1] = octade.toInt();
     address = address.substring(address.indexOf(".")+1,address.length());
-    
+
     octade = address.substring(0,address.indexOf("."));
     _address[2] = octade.toInt();
     address = address.substring(address.indexOf(".")+1,address.length());
-    
+
     octade = address.substring(0,address.indexOf("."));
     _address[3] = octade.toInt();
     address = address.substring(address.indexOf(".")+1,address.length());
-    
+
     /*
     Serial.print(_address[0],DEC);
     Serial.print('.');
@@ -127,7 +206,7 @@ IPAddress _ipAddressFromString(char* hostname) {
     Serial.print('.');
     Serial.println(_address[3],DEC);
     */
-    
+
     return _address;
 }
 
@@ -208,7 +287,7 @@ bool _coapSubscribe(coap_packet_t* pkt_p, char* hostName, long unsigned int* por
                 int segm_i = 0;
                 while(buflen--) {
                     uint8_t x = *buf++;
-                    
+
                     char c = char(x);
                     Serial.print(char(c));
                     Serial.print(" ");
@@ -217,10 +296,10 @@ bool _coapSubscribe(coap_packet_t* pkt_p, char* hostName, long unsigned int* por
                 }
                 Serial.print("\n");
     */
-    // saving uri_path before corrupting the pkt:            
+    // saving uri_path before corrupting the pkt:
     coap_endpoint_path_t uri_path;
     _parse_uri_path_opt(pkt_p,&uri_path);
-    
+
     //handling request:
     size_t rsplen = sizeof(buffer);
     coap_handle_req(&scratch_buf, pkt_p, &rsppkt);
@@ -268,14 +347,14 @@ void listenCoAP()
     if (sz > 0) {
 	udp.read(buffer, sizeof(buffer));
 	int i;
-	
+
 	for (i=0;i<sz;i++)
 	{
 	    Serial.print(buffer[i], HEX);
 	    Serial.print(" ");
 	}
 	Serial.println("");
-	
+
         // prepare coap answer:
 	if (0 != (rc = coap_parse(&pkt, buffer, sz))) {
             Serial.print("Bad packet rc=");
