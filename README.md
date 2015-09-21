@@ -17,22 +17,16 @@ Based on [esp8266 Arduino IDE libraries](https://github.com/esp8266/Arduino)
 and microcoap implementation with SemIoT observe patches (#TODO: separate it)
 
 ### `TODO`:
-+ fix sscanf missing
++ fix [sscanf missing](https://github.com/esp8266/Arduino/issues/488)
 + switch to [Bare Arduino Project](https://github.com/ladislas/Bare-Arduino-Project)
 (implement platform.txt support for [Arduino-Makefile](https://github.com/sudar/Arduino-Makefile))
 + add new obsering resourse (ticker based)
-+ contribute to used libs
 
 ## Connecting esp8266 to some Arduino board via Serial port
 
 It's highly recommended to use esp8266 firmware higher than 0.9.4
 with AT commands send higher than v0.2
 to get udp working more or less well with manufacturer firmware.
-
-You could find binary firmware for the esp8266 512KB flash memory version
-in the /software/esp8266 project repo
-with the PDF document containing appropriate AT commands description
-from Espressif Systems IOT Team (v0.23).
 
 You could easily flash the esp8266 from linux with the python esp8266tool like that:
 
@@ -52,7 +46,7 @@ try to use the built-in arduino usb-ttl converter similar to the scheme:
 ![ScreenShot](http://esp8266.ru/wp-content/uploads/esp8266-arduino_bb.jpg)
 
 We are working on the libraries we using as well to provide better results.
-We're providing ESP8266 WiFi library compatible with the Arduino WiFi API.
+We're providing [ESP8266 WiFi library compatible with the Arduino WiFi API](https://github.com/semiotproject/SparkFun_ESP8266_AT_Arduino_Library)
 
 ### Tested with Arduino MEGA 2560 and ESP8266 512K chip:
 + Arduino MEGA 2560
