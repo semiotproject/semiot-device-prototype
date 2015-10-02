@@ -15,13 +15,11 @@
 //#define DHTTYPE DHT21   // DHT 21 (AM2301)
 DHT dht(DHTPIN, DHTTYPE);
 
-
+byte mac[6];
 char d;
-#define D_PORT 32001
+#define PORT 32001
 char h;
-#define H_PORT 32002
 char t;
-#define T_PORT 32003
 
 IPAddress ip; // = WiFi.localIP();
 
@@ -36,6 +34,7 @@ void setup() {
     Serial.begin(115200);
     dht.begin();
     WiFi.mode(WIFI_AP);
+    WiFi.macAddress(mac);
     while ( WiFi.status() != WL_CONNECTED) {
 	Serial.print("Attempting to connect to WPA SSID: ");
 	Serial.println(SSID);
@@ -45,7 +44,7 @@ void setup() {
 	delay(10000);
     }
     Serial.println("\nStarting connection to server...");
-    g_udp.begin(D_PORT); // FIXME: do we really need this?
+    g_udp.begin(PORT);
     ip = WiFi.localIP();
     ip[3] = 255; // broadcast
 }
@@ -55,16 +54,12 @@ void loop() {
     t = dht.readTemperature();
     d = isnan(h) || isnan(t);
     
-    g_udp.beginPacket(ip, D_PORT);
-    g_udp.write(&d, sizeof(d));
-    g_udp.endPacket();
-    
-    g_udp.beginPacket(ip, H_PORT);
-    g_udp.write(&h, sizeof(h));
-    g_udp.endPacket();
-    
-    g_udp.beginPacket(ip, T_PORT);
-    g_udp.write(&t, sizeof(t));
+    g_udp.beginPacket(ip, PORT);
+    // FIXME: Magic numbers:
+    g_udp.write(mac, size_t(6));
+    g_udp.write(&d, size_t(1));
+    g_udp.write(&h, size_t(4));
+    g_udp.write(&t, size_t(4));
     g_udp.endPacket();
     ESP.deepSleep(TIME_PERIOD, WAKE_RF_DISABLED);
 }
