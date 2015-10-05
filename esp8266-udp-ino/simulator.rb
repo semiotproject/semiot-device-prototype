@@ -14,7 +14,7 @@ end
 
 mac = RandomMac()
 
-address = "192.168.0.171"
+address = "192.168.0.104"
 port = 32001
 udp_socket = UDPSocket.new
 
