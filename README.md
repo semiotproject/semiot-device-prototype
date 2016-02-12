@@ -1,79 +1,46 @@
-# Arduino ESP8266 WiFI module SemIoT device prototype.
-
-There are different ways to use this software:
-+ directly flashing esp8266 without any additional Arduino boards
-+ connecting esp8266 to some Arduino board via Serial port
-and sending AT commands with manufacturer esp8266 firmware
-(no need to re-flash esp8266)
-+ using some Arduino board with any other WiFi-shield
-+ `TODO`: compile for posix-compatible systems (for example, linux-based)
-
-Most of the significant defines are in `./semiot-device/connections.h`
-
-
-## Directly flashing esp8266 without any additional Arduino boards
+# Arduino ESP8266 WiFI module SemIoT device prototypes.
 
 Based on [esp8266 Arduino IDE libraries](https://github.com/esp8266/Arduino)
-and microcoap implementation with SemIoT observe patches (#TODO: separate it)
 
-### `TODO`:
-+ fix [sscanf missing](https://github.com/esp8266/Arduino/issues/488)
-+ switch to [Bare Arduino Project](https://github.com/ladislas/Bare-Arduino-Project)
-(implement platform.txt support for [Arduino-Makefile](https://github.com/sudar/Arduino-Makefile))
-+ add new obsering resourse (ticker based)
-
-## Connecting esp8266 to some Arduino board via Serial port
-
-It's highly recommended to use esp8266 firmware higher than 0.9.4
-with AT commands send higher than v0.2
-to get udp working more or less well with manufacturer firmware.
-
-You could easily flash the esp8266 from linux with the python esp8266tool like that:
-
-```
-esptool.py --port /dev/ttyACM0 --baud 115200 write_flash 0x000000 at023sdk101flash512k.bin
-```
-
-Note that after the flashing the firmware default baudrate will be 115200
-
-If you have some problems with starting the flashing
-you could try to reset esp8266 VCC pin to enter the flash writing mode.
-
+## *How to flash ESP8266
 If you don't have the USB TTL converter to connect the esp8266 directly to your machine
 and have the arduino board,
 try to use the built-in arduino usb-ttl converter similar to the scheme:
 
 ![ScreenShot](http://esp8266.ru/wp-content/uploads/esp8266-arduino_bb.jpg)
 
-We are working on the libraries we using as well to provide better results.
-We're providing [ESP8266 WiFi library compatible with the Arduino WiFi API](https://github.com/semiotproject/SparkFun_ESP8266_AT_Arduino_Library)
+If you have some problems with starting the flashing
+you could try to ground esp8266 RST pin to enter the flash writing mode.
 
-### Tested with Arduino MEGA 2560 and ESP8266 512K chip:
-+ Arduino MEGA 2560
-+ ESP8266 Device connected to Mega 2560 via Serial 3
-+ DHT11 sensor connected to 2nd digital pin
+## Supported devices
 
-![ScreenShot](https://dl.dropboxusercontent.com/u/39622126/Docs/semiot-shots/semiot-device_schem.png)
-![ScreenShot](https://dl.dropboxusercontent.com/u/39622126/Docs/semiot-shots/semiot-device_bb.png)
+Two popular protocolos are currently supporting: RS-485 and impulse telemetry.
+If you want to use RS-485-based device, you also should implement device-specific logic for esp8266-based modem.
 
-## Using some Arduino board with any other WiFi-shield
+### Impulse counter
+Impulse counter basic connection idea:
+![impulse_connection](https://hsto.org/files/71e/713/cd1/71e713cd15dd4d4683105eddd48313fd.jpg)
 
-`TODO`: not tested, should be similar to previous description
+esp8266 firmware: `./src/semiot_impulse_counter/semiot_impulse_counter.ino`
 
-## Compile for posix-compatible systems (for example, linux-based)
+#### Supported impulse counter based devices
++ [Valtec VL-R-I water consumption meter](http://valtec.ru/catalog/pribory_ucheta/schetchiki_dlya_vody/vodoschetchik_universalnyj_s_impulsnym_vyhodom.html)
+![VL-R-I](http://valtec.ru/image/goods/full//VLF-R-I.jpg)
+SemIoT Gateway Device driver is also avaliable
 
-`TODO`: implement it
++ [Incotex Mercury-201 electricity power consumption meter](http://www.incotexcom.ru/m201.htm)
+![m201](http://www.incotexcom.ru/img/m201_2.jpg)
+SemIoT Gateway Device driver is also avaliable
 
-# Additional notes
+### RS-485 based devices
+RS-485 counter basic connection idea via max485 interface:
+`TODO: scheme`
 
-I recommend to use for testing [Wireshark](https://www.wireshark.org/) and
-[libcoap](https://libcoap.net/):
-```
-coap-client -v 1 -p 5683 -m get coap://DEVICE_IP/.well-known/core
-```
-or [smcp](https://github.com/darconeous/smcp/):
-```
-smcpctl observe cp://DEVICE_IP:5683/dht_sensor/humidity
-```
+#### Supported RS-485 counter based devices
++ [Energomera ce102r5-ak electricity power consumption meter](http://www.energomera.ru/ru/products/archive/ce102r5)
+![ce102r5](http://www.energomera.ru/images/400x400/ce102r5/ce102_r5_main.jpg)
+`IN PROGRESS`
 
-or and [Copper Firefox Plugin](https://addons.mozilla.org/En-us/firefox/addon/copper-270430/).
++ [Teplovodokhran Pulsar water consumption meter](http://teplovodokhran.ru/products/schetchik-vody-kvartirnyy-pulsar-du-15.html)
+![pulsar_w](http://teplovodokhran.ru.images.1c-bitrix-cdn.ru/upload/iblock/167/167e5dd8ccffa6ca82b63f58f82d8246.jpg?1436508211105364)
+`COMING SOON`
