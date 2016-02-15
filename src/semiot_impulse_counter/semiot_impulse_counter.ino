@@ -2,6 +2,18 @@
 #include <WiFiUdp.h>
 #include <EEPROM.h>
 
+// FORMAT:
+// "WORD" (4B)
+// imp_counter (2B)
+// high_counter (4B)
+// MAC (6B)
+// == 16 BYTES
+// TODO: checksum?
+
+// Valtec VLF-R-I: "VLFR"
+// Incotex Mercury M201: "M201"
+#define MODEL_WORD "M201"
+
 #define PULSE_PIN 2 // GPIO2
 // debug led to VCC:
 #define DEBUG_LED_PIN 0 // GPIO0
@@ -11,19 +23,17 @@
 bool _debug = false;
 bool _debug_led = true;
 
-// Mercury-201 energy counsumption meter based format:
-// 3200 impulses ~= 1 kW*h
-// FIXME: universal counter format
-#define KWH_IMPULSES_NUMBER 3200
+#define MAX_COUNTER_LOW_NUMBER 3200
 #define SERIAL_BAUDRATE 115200
 
 uint16_t imp_counter = 0; // 2 bytes
-unsigned int kWh_counter = 0; // 4 bytes for esp8266
+unsigned int high_counter = 0; // 4 bytes for esp8266
 bool counter_changed = false;
 bool need_to_reconnect = false;
 
 WiFiUDP _udp;
 IPAddress ip;
+byte mac[6];
 const int udp_port = 55555;
 #define UDP_GTW_OK_SIZE 5
 #define UDP_GTW_OK "GTWOK"
@@ -31,31 +41,24 @@ const int udp_port = 55555;
 char gtw_ok_buffer[UDP_GTW_OK_SIZE];
 char gtw_ip;
 
-// FORMAT:
-// "M201" (4B)
-// imp_counter (2B)
-// KWh_counter (4B)
-// newline (1B)
-// == 10 BYTES
-// TODO: checksum?
 void read_counters_from_eeprom() {
-    //EEPROM.begin(11);
+    //EEPROM.begin(16);
     // TODO: "M201 and newline"
     // NOTE: platform specific:
     // FIXME: magic numbers from packet format:
     int _imp_counter = ((unsigned char)(EEPROM.read(4)) << 8) + (unsigned char)EEPROM.read(5);
-    if (_imp_counter<KWH_IMPULSES_NUMBER) {
+    if (_imp_counter<MAX_COUNTER_LOW_NUMBER) {
         imp_counter=_imp_counter;
         if (_debug) {
             Serial.print("EEPROM _imp_counter= ");
             Serial.println(_imp_counter,DEC);
         }
-        int _kWh_counter = ((unsigned char)(EEPROM.read(6)) << 24) + ((unsigned char)(EEPROM.read(7)) << 16) + ((unsigned char)(EEPROM.read(8)) << 8) + (unsigned char)EEPROM.read(9);
+        int _high_counter = ((unsigned char)(EEPROM.read(6)) << 24) + ((unsigned char)(EEPROM.read(7)) << 16) + ((unsigned char)(EEPROM.read(8)) << 8) + (unsigned char)EEPROM.read(9);
         if (_debug) {
-            Serial.print("EEPROM _kWh_counter= ");
-            Serial.println(_kWh_counter,DEC);
+            Serial.print("EEPROM _high_counter= ");
+            Serial.println(_high_counter,DEC);
         }
-        kWh_counter=_kWh_counter;
+        high_counter=_high_counter;
     }
     //EEPROM.end();
 }
@@ -64,14 +67,14 @@ void write_counters_to_eeprom() {
     // NOTE: platform specific:
     // TODO: "M201 and newline"
     // FIXME: magic numbers from packet format:
-    //EEPROM.begin(11);
+    //EEPROM.begin(16);
     EEPROM.write(4,(imp_counter >> 8) & 0xFF);
     EEPROM.write(5,(imp_counter >> 0) & 0xFF);
 
-    EEPROM.write(6,(kWh_counter >> 24) & 0xFF);
-    EEPROM.write(7,(kWh_counter >> 16) & 0xFF);
-    EEPROM.write(8,(kWh_counter >> 8) & 0xFF);
-    EEPROM.write(9,(kWh_counter >> 0) & 0xFF);
+    EEPROM.write(6,(high_counter >> 24) & 0xFF);
+    EEPROM.write(7,(high_counter >> 16) & 0xFF);
+    EEPROM.write(8,(high_counter >> 8) & 0xFF);
+    EEPROM.write(9,(high_counter >> 0) & 0xFF);
     EEPROM.commit();
     //EEPROM.end();
 }
@@ -147,6 +150,7 @@ void reconnect_to_wlan() {
             }
         }
     }
+    WiFi.macAddress(mac);
     _udp.begin(udp_port);
     gtw_search();
     if (_debug_led) {
@@ -185,9 +189,9 @@ void loop() {
     }
     if (counter_changed==true) {
         counter_changed=false;
-        if (imp_counter==KWH_IMPULSES_NUMBER) {
+        if (imp_counter==MAX_COUNTER_LOW_NUMBER) {
             imp_counter=0;
-            kWh_counter++;
+            high_counter++;
         }
         write_counters_to_eeprom();
         // send some data
@@ -195,23 +199,28 @@ void loop() {
             if (!_udp.beginPacket(ip, udp_port)) {
                 need_to_reconnect==true;
             }
-            _udp.write("M201");
+            _udp.write(MODEL_WORD);
             _udp.write((imp_counter >> 8) & 0xFF);
             _udp.write((imp_counter >> 0) & 0xFF);
 
-            _udp.write((kWh_counter >> 24) & 0xFF);
-            _udp.write((kWh_counter >> 16) & 0xFF);
-            _udp.write((kWh_counter >> 8) & 0xFF);
-            _udp.write((kWh_counter >> 0) & 0xFF);
-            _udp.write("\n");
+            _udp.write((high_counter >> 24) & 0xFF);
+            _udp.write((high_counter >> 16) & 0xFF);
+            _udp.write((high_counter >> 8) & 0xFF);
+            _udp.write((high_counter >> 0) & 0xFF);
+            _udp.write(mac[5]);
+            _udp.write(mac[4]);
+            _udp.write(mac[3]);
+            _udp.write(mac[2]);
+            _udp.write(mac[1]);
+            _udp.write(mac[0]);
             if (_udp.endPacket()) {
                 need_to_reconnect==true;
             }
             if (_debug) {
                 Serial.print("counter = ");
                 Serial.println(imp_counter,DEC);
-                Serial.print("W*h = ");
-                Serial.println(imp_counter*0.3125,DEC); // 1000/3200: 3200 impulses ~= 1 kW*h
+                Serial.print("high counter = ");
+                Serial.println(high_counter,DEC);
             }
         }
         else {
