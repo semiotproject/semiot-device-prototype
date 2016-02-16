@@ -12,7 +12,7 @@
 
 // Valtec VLF-R-I: "VLFR"
 // Incotex Mercury M201: "M201"
-#define MODEL_WORD "M201"
+#define MODEL_WORD "VLFR"
 
 #define PULSE_PIN 2 // GPIO2
 // debug led to VCC:
@@ -20,10 +20,10 @@
 #define DEBUG_LED_LIGHT LOW
 #define DEBUG_LED_DARK HIGH
 
-bool _debug = true;
+bool _debug = false;
 bool _debug_led = true;
 
-#define MAX_COUNTER_LOW_NUMBER 3200
+#define MAX_COUNTER_LOW_NUMBER 10
 #define SERIAL_BAUDRATE 115200
 
 uint16_t imp_counter = 0; // 2 bytes
@@ -34,7 +34,7 @@ bool need_to_reconnect = false;
 WiFiUDP _udp;
 IPAddress ip;
 byte mac[6];
-const int udp_port = 55555;
+const int udp_port = 33333;
 #define UDP_GTW_OK_SIZE 5
 #define UDP_GTW_OK "GTWOK"
 #define UDP_GTW_PING "GTW"
@@ -213,12 +213,12 @@ void loop() {
             _udp.write((high_counter >> 16) & 0xFF);
             _udp.write((high_counter >> 8) & 0xFF);
             _udp.write((high_counter >> 0) & 0xFF);
-            _udp.write(mac[5]);
-            _udp.write(mac[4]);
-            _udp.write(mac[3]);
-            _udp.write(mac[2]);
-            _udp.write(mac[1]);
             _udp.write(mac[0]);
+            _udp.write(mac[1]);
+            _udp.write(mac[2]);
+            _udp.write(mac[3]);
+            _udp.write(mac[4]);
+            _udp.write(mac[5]);
             if (_udp.endPacket()) {
                 need_to_reconnect==true;
             }
