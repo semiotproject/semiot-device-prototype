@@ -20,7 +20,7 @@
 #define DEBUG_LED_LIGHT LOW
 #define DEBUG_LED_DARK HIGH
 
-bool _debug = false;
+bool _debug = true;
 bool _debug_led = true;
 
 #define MAX_COUNTER_LOW_NUMBER 3200
@@ -80,33 +80,39 @@ void write_counters_to_eeprom() {
 }
 
 void gtw_search() {
-    ip = WiFi.localIP();
+    ip = (~WiFi.subnetMask()) | WiFi.gatewayIP();
     gtw_ip=0;
     while (gtw_ip == 0) {
-        for (int i=1;i<255;i++) { //TODO: do not send to yourself
+        if (_debug) {
+            Serial.println("sending broadcast:");
+            Serial.println(ip[0],DEC);
+            Serial.println(ip[1],DEC);
+            Serial.println(ip[2],DEC);
+            Serial.println(ip[3],DEC);
+        }
+        if (_udp.beginPacket(ip, udp_port)) {
+            _udp.write(UDP_GTW_PING);
+            _udp.endPacket();
             if (_debug) {
-                Serial.println(i,DEC);
+                Serial.println("...");
             }
-            ip[3] = i; // FIXME: recognize local gateway IP
-            if (_udp.beginPacket(ip, udp_port)) {
-                _udp.write(UDP_GTW_PING);
-                _udp.endPacket();
-                delay(100);
-                int sz = _udp.parsePacket();
-                if (sz==UDP_GTW_OK_SIZE) {
-                    _udp.read(gtw_ok_buffer,UDP_GTW_OK_SIZE);
-                    if (strcmp(gtw_ok_buffer, UDP_GTW_OK) == 0) {
-                        gtw_ip=_udp.remoteIP()[3];
-                        break;
+            delay(1500);
+            int sz = _udp.parsePacket();
+            if (_debug) {
+                Serial.print("sz=");
+                Serial.println(sz,DEC);
+            }
+            if (sz==UDP_GTW_OK_SIZE) {
+                _udp.read(gtw_ok_buffer,UDP_GTW_OK_SIZE);
+                if (memcmp(gtw_ok_buffer, UDP_GTW_OK, UDP_GTW_OK_SIZE) == 0) {
+                    if (_debug) {
+                        Serial.println("found semiot-gateway!");
                     }
+                    ip=_udp.remoteIP();
+                    break;
                 }
             }
         }
-    }
-    ip[3]=gtw_ip;
-    if (_debug) {
-        Serial.print("found semiot-gateway, last ipv4 octet: ");
-        Serial.println(gtw_ip, DEC);
     }
 }
 
