@@ -21,6 +21,7 @@ If you want to use RS-485-based device, you also should implement device-specifi
 Impulse counter basic connection idea:
 
 ![imp_bb](https://github.com/semiotproject/semiot-device-prototype/raw/master/doc/semiot_impulse_counter/impulse_connection_bb.png)
+
 ![imp_schema](https://github.com/semiotproject/semiot-device-prototype/raw/master/doc/semiot_impulse_counter/impulse_connection_schematic.png)
 
 
