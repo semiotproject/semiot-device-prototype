@@ -4,7 +4,7 @@
 
 // FORMAT:
 // "WORD" (4B)
-// imp_counter (2B)
+// low_counter (2B)
 // high_counter (4B)
 // MAC (6B)
 // == 16 BYTES
@@ -26,7 +26,7 @@ bool _debug_led = true;
 #define MAX_COUNTER_LOW_NUMBER 10
 #define SERIAL_BAUDRATE 115200
 
-uint16_t imp_counter = 0; // 2 bytes
+uint16_t low_counter = 0; // 2 bytes
 unsigned int high_counter = 0; // 4 bytes for esp8266
 bool counter_changed = false;
 bool need_to_reconnect = false;
@@ -46,12 +46,12 @@ void read_counters_from_eeprom() {
     // TODO: "M201 and newline"
     // NOTE: platform specific:
     // FIXME: magic numbers from packet format:
-    int _imp_counter = ((unsigned char)(EEPROM.read(4)) << 8) + (unsigned char)EEPROM.read(5);
-    if (_imp_counter<MAX_COUNTER_LOW_NUMBER) {
-        imp_counter=_imp_counter;
+    int _low_counter = ((unsigned char)(EEPROM.read(4)) << 8) + (unsigned char)EEPROM.read(5);
+    if (_low_counter<MAX_COUNTER_LOW_NUMBER) {
+        low_counter=_low_counter;
         if (_debug) {
-            Serial.print("EEPROM _imp_counter= ");
-            Serial.println(_imp_counter,DEC);
+            Serial.print("EEPROM _low_counter= ");
+            Serial.println(_low_counter,DEC);
         }
         int _high_counter = ((unsigned char)(EEPROM.read(6)) << 24) + ((unsigned char)(EEPROM.read(7)) << 16) + ((unsigned char)(EEPROM.read(8)) << 8) + (unsigned char)EEPROM.read(9);
         if (_debug) {
@@ -68,8 +68,8 @@ void write_counters_to_eeprom() {
     // TODO: "M201 and newline"
     // FIXME: magic numbers from packet format:
     //EEPROM.begin(16);
-    EEPROM.write(4,(imp_counter >> 8) & 0xFF);
-    EEPROM.write(5,(imp_counter >> 0) & 0xFF);
+    EEPROM.write(4,(low_counter >> 8) & 0xFF);
+    EEPROM.write(5,(low_counter >> 0) & 0xFF);
 
     EEPROM.write(6,(high_counter >> 24) & 0xFF);
     EEPROM.write(7,(high_counter >> 16) & 0xFF);
@@ -165,7 +165,7 @@ void reconnect_to_wlan() {
 }
 
 void blink() {
-    imp_counter++;
+    low_counter++;
     counter_changed = true;
 }
 
@@ -173,7 +173,7 @@ void setup() {
     if (_debug) {
         Serial.begin(SERIAL_BAUDRATE);
     }
-    EEPROM.begin(11);
+    EEPROM.begin(16);
     read_counters_from_eeprom();
     pinMode(PULSE_PIN, INPUT);
     digitalWrite(PULSE_PIN,LOW);
@@ -195,8 +195,8 @@ void loop() {
     }
     if (counter_changed==true) {
         counter_changed=false;
-        if (imp_counter==MAX_COUNTER_LOW_NUMBER) {
-            imp_counter=0;
+        if (low_counter==MAX_COUNTER_LOW_NUMBER) {
+            low_counter=0;
             high_counter++;
         }
         write_counters_to_eeprom();
@@ -206,8 +206,8 @@ void loop() {
                 need_to_reconnect==true;
             }
             _udp.write(MODEL_WORD);
-            _udp.write((imp_counter >> 8) & 0xFF);
-            _udp.write((imp_counter >> 0) & 0xFF);
+            _udp.write((low_counter >> 8) & 0xFF);
+            _udp.write((low_counter >> 0) & 0xFF);
 
             _udp.write((high_counter >> 24) & 0xFF);
             _udp.write((high_counter >> 16) & 0xFF);
@@ -224,7 +224,7 @@ void loop() {
             }
             if (_debug) {
                 Serial.print("counter = ");
-                Serial.println(imp_counter,DEC);
+                Serial.println(low_counter,DEC);
                 Serial.print("high counter = ");
                 Serial.println(high_counter,DEC);
             }
