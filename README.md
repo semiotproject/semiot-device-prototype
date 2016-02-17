@@ -20,6 +20,10 @@ If you want to use RS-485-based device, you also should implement device-specifi
 ### Impulse counter
 Impulse counter basic connection idea:
 
+![imp_bb](https://github.com/semiotproject/semiot-device-prototype/raw/master/doc/semiot_impulse_counter/impulse_connection_bb.png)
+![imp_schema](https://github.com/semiotproject/semiot-device-prototype/raw/master/doc/semiot_impulse_counter/impulse_connection_schematic.png)
+
+
 ![impulse_connection](https://hsto.org/files/71e/713/cd1/71e713cd15dd4d4683105eddd48313fd.jpg)
 
 esp8266 firmware: `./src/semiot_impulse_counter/semiot_impulse_counter.ino`
