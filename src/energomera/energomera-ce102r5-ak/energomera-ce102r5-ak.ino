@@ -4,7 +4,7 @@
 
 // FORMAT:
 // "WORD" (4B)
-// low_counter (2B)
+// low_counter (2B) -- 00
 // high_counter (4B)
 // MAC (6B)
 // == 16 BYTES
@@ -23,7 +23,7 @@
 bool _debug = false;
 bool _debug_led = true;
 
-#define MAX_COUNTER_LOW_NUMBER 1000
+#define MAX_COUNTER_LOW_NUMBER 1
 #define SERIAL_BAUDRATE 115200
 
 uint16_t low_counter = 0; // 2 bytes
@@ -164,11 +164,6 @@ void reconnect_to_wlan() {
     }
 }
 
-void blink() {
-    low_counter++;
-    counter_changed = true;
-}
-
 // TODO: separate to lib:
 //------------------------------------------------
 #define DEBUG_BAUDRATE 115200
@@ -219,103 +214,101 @@ const unsigned char crc8tab[256] = {
 
 
 void sendByteToRS485(int outByte) {
-  digitalWrite(SerialTxControl, RS485Transmit);
-  if (_debug) {
-      Serial.print("0x");
-      Serial.print(outByte,HEX);
-      Serial.print(" ");
-  }
-
-  Serial.write(outByte);
-  Serial.flush();
-  digitalWrite(SerialTxControl, RS485Receive);
+    digitalWrite(SerialTxControl, RS485Transmit);
+    if (_debug) {
+        Serial.print("0x");
+        Serial.print(outByte,HEX);
+        Serial.print(" ");
+    }
+    Serial.write(outByte);
+    Serial.flush();
+    digitalWrite(SerialTxControl, RS485Receive);
 }
 
 void startCePacket() {
-  sendByteToRS485(END_CH);
+    sendByteToRS485(END_CH);
 }
 
 void endCEPacket() {
-  sendByteToRS485(END_CH);
+    sendByteToRS485(END_CH);
 }
 
 void sendByteToCE(int outByte) {
-  if (outByte==END_CH) {
-    sendByteToRS485(END_REPL_1_CH);
-    sendByteToRS485(END_REPL_2_CH);
-  }
-  else if (outByte==ESC_CH) {
-    sendByteToRS485(ESC_REPL_1_CH);
-    sendByteToRS485(ESC_REPL_1_CH);
-  }
-  else {
-    sendByteToRS485(outByte);
-  }
-
+    if (outByte==END_CH) {
+        sendByteToRS485(END_REPL_1_CH);
+        sendByteToRS485(END_REPL_2_CH);
+    }
+    else if (outByte==ESC_CH) {
+        sendByteToRS485(ESC_REPL_1_CH);
+        sendByteToRS485(ESC_REPL_1_CH);
+    }
+    else {
+        sendByteToRS485(outByte);
+    }
 }
 
 void sendCommandToCE(int AddrD, int Command) {
-  startCePacket();
+    startCePacket();
 
-  crc8 = 0;
-  sendByteToCE(OPT_CH); crc8= crc8tab[crc8 ^ OPT_CH];
+    crc8 = 0;
+    sendByteToCE(OPT_CH); crc8= crc8tab[crc8 ^ OPT_CH];
 
 
-  unsigned char AddrDH = (unsigned char) (AddrD >> 8);
-  unsigned char  AddrDL = (unsigned char ) (AddrD & 0xff);
-  sendByteToCE(AddrDL); crc8= crc8tab[crc8 ^ AddrDL];
-  sendByteToCE(AddrDH); crc8= crc8tab[crc8 ^ AddrDH];
+    unsigned char AddrDH = (unsigned char) (AddrD >> 8);
+    unsigned char  AddrDL = (unsigned char ) (AddrD & 0xff);
+    sendByteToCE(AddrDL); crc8= crc8tab[crc8 ^ AddrDL];
+    sendByteToCE(AddrDH); crc8= crc8tab[crc8 ^ AddrDH];
 
-  sendByteToCE(0); crc8= crc8tab[crc8 ^ 0];
-  sendByteToCE(0); crc8= crc8tab[crc8 ^ 0];
-
-  // PAL:
-  unsigned char passwd[4] = {0x0,0x0,0x0,0x0}; // TODO: user pass
-  for (i=0;i<4;i++) { // FIXME: magic 4 bytes
-    sendByteToCE(passwd[i]); crc8= crc8tab[crc8 ^ passwd[i]];
-  }
-
-  // serv:
-  unsigned char MessageLength = 0; // TODO:
-  if (Command==ReadTariffSum_Command) {
-    MessageLength=1;
-  }
-
-  unsigned char serv = DIRECT_REQ_CH + CLASS_ACCESS_CH + MessageLength;
-  sendByteToCE(serv); crc8= crc8tab[crc8 ^ serv];
-
-  unsigned char CommandH = (unsigned char) (Command >> 8);
-  unsigned char CommandL =  (unsigned char ) (Command & 0xff);
-  sendByteToCE(CommandH); crc8= crc8tab[crc8 ^ CommandH];
-  sendByteToCE(CommandL); crc8= crc8tab[crc8 ^ CommandL];
-
-  // if Ping -- No Additional Data in PAL
-  if (Command==ReadTariffSum_Command) {
     sendByteToCE(0); crc8= crc8tab[crc8 ^ 0];
-  }
+    sendByteToCE(0); crc8= crc8tab[crc8 ^ 0];
 
-  sendByteToCE(crc8);
+    // PAL:
+    unsigned char passwd[4] = {0x0,0x0,0x0,0x0}; // TODO: user pass
+    for (i=0;i<4;i++) { // FIXME: magic 4 bytes
+        sendByteToCE(passwd[i]); crc8= crc8tab[crc8 ^ passwd[i]];
+    }
 
-  endCEPacket();
+    // serv:
+    unsigned char MessageLength = 0; // TODO:
+    if (Command==ReadTariffSum_Command) {
+        MessageLength=1;
+    }
+
+    unsigned char serv = DIRECT_REQ_CH + CLASS_ACCESS_CH + MessageLength;
+    sendByteToCE(serv); crc8= crc8tab[crc8 ^ serv];
+
+    unsigned char CommandH = (unsigned char) (Command >> 8);
+    unsigned char CommandL =  (unsigned char ) (Command & 0xff);
+    sendByteToCE(CommandH); crc8= crc8tab[crc8 ^ CommandH];
+    sendByteToCE(CommandL); crc8= crc8tab[crc8 ^ CommandL];
+
+    // if Ping -- No Additional Data in PAL
+    if (Command==ReadTariffSum_Command) {
+        sendByteToCE(0); crc8= crc8tab[crc8 ^ 0];
+    }
+
+    sendByteToCE(crc8);
+
+    endCEPacket();
 }
 
 void Ping(int AddrD) {
-  sendCommandToCE(AddrD, Ping_Command);
+    sendCommandToCE(AddrD, Ping_Command);
 }
 
 void ReadSerialNumber(int AddrD) {
-  sendCommandToCE(AddrD, ReadSerialNumber_Command);
+    sendCommandToCE(AddrD, ReadSerialNumber_Command);
 }
 
 // TODO: additional param
 void ReadTariffSum(int AddrD) {
-  sendCommandToCE(AddrD, ReadTariffSum_Command);
+    sendCommandToCE(AddrD, ReadTariffSum_Command);
 }
 
 void BadCommand() {
-  startCePacket();
-  sendByteToRS485(0);
-  endCEPacket();
+    startCePacket();
+    sendByteToRS485(0);
+    endCEPacket();
 }
 
 // END of CE Protocol
@@ -330,28 +323,86 @@ void setup() {
     digitalWrite(SerialTxControl, RS485Receive);
     reconnect_to_wlan();
     if (_debug) {
-      Serial.println("Setup completed, waiting for rising input");
+        Serial.println("Setup completed, waiting for rising input");
     }
 }
 
 void loop() {
-  delay(5000);
-  while ( Serial.available()!=0) {
-    int inByte = Serial.read();
-      if (_debug) {
-          Serial.print("0x");
-          Serial.print(inByte,HEX);
-          Serial.print(" ");
-      }
-  }
-  // TODO: save answer to counters
-  if (_debug) {
-      Serial.println("");
-      Serial.println("Sending command:");
-  }
-  ReadTariffSum(1363); // FIXME: magic numbers
-  if (_debug) {
-      Serial.println("");
-  }
+    delay(5000);
+    if (need_to_reconnect==true) {
+        need_to_reconnect = false;
+        reconnect_to_wlan();
+    }
 
+    if (_debug) {
+        Serial.println("");
+        Serial.println("Sending command:");
+    }
+    ReadTariffSum(1363); // FIXME: magic numbers
+    if (_debug) {
+        Serial.println("");
+    }
+
+    delay(1000);
+
+    unsigned char _buf_size = 4; // ReadTariffSumAnsSize
+    unsigned char _buf[_buf_size];
+    int _b = 0;
+    while ( Serial.available()!=0) {
+        int inByte = Serial.read();
+        if (_debug) {
+            Serial.print("0x");
+            Serial.print(inByte,HEX);
+            Serial.print(" ");
+        }
+        if ((inByte>-1) & (inByte<256) & (_b<_buf_size)) {
+            _buf[_b]=inByte;
+            _b++;
+        }
+        else {
+            _b=0;
+        }
+    }
+    if (_b==_buf_size) {
+        low_counter=0;
+        high_counter=_buf[0]<<24+_buf[1]<<16+_buf[2]<<8+_buf[3];
+        counter_changed=true;
+    }
+
+    if (counter_changed==true) {
+        counter_changed=false;
+        write_counters_to_eeprom();
+        // send some data
+        if (WiFi.status() == WL_CONNECTED) {
+            if (!_udp.beginPacket(ip, udp_port)) {
+                need_to_reconnect==true; // FIXME
+            }
+            _udp.write(MODEL_WORD);
+            _udp.write((low_counter >> 8) & 0xFF);
+            _udp.write((low_counter >> 0) & 0xFF);
+
+            _udp.write((high_counter >> 24) & 0xFF);
+            _udp.write((high_counter >> 16) & 0xFF);
+            _udp.write((high_counter >> 8) & 0xFF);
+            _udp.write((high_counter >> 0) & 0xFF);
+            _udp.write(mac[0]);
+            _udp.write(mac[1]);
+            _udp.write(mac[2]);
+            _udp.write(mac[3]);
+            _udp.write(mac[4]);
+            _udp.write(mac[5]);
+            if (_udp.endPacket()) {
+                need_to_reconnect==true; // FIXME
+            }
+            if (_debug) {
+                Serial.print("counter = ");
+                Serial.println(low_counter,DEC);
+                Serial.print("high counter = ");
+                Serial.println(high_counter,DEC);
+            }
+        }
+        else {
+            need_to_reconnect==true;
+        }
+    }
 }
