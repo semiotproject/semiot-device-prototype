@@ -55,6 +55,11 @@ RS-485 counter basic connection idea via max485 interface:
 
 ![ce102r5](http://www.energomera.ru/images/400x400/ce102r5/ce102_r5_main.jpg)
 
+[Protocol description (in russian)](http://www.energomera.ru/documentations/ce102_op.pdf)
+
+[AdminTools (WIN)](http://www.energomera.ru/ru/software/AdminTools) works with max485 and arduino-mega-usb transport ([temp sketch](https://gist.github.com/a-andreyev/68b0272e6381068dd575))
+
+
 `IN PROGRESS`
 
 + [Teplovodokhran Pulsar water consumption meter](http://teplovodokhran.ru/products/schetchik-vody-kvartirnyy-pulsar-du-15.html)
