@@ -24,7 +24,6 @@ bool _debug = false;
 bool _debug_led = true;
 
 #define MAX_COUNTER_LOW_NUMBER 1
-#define SERIAL_BAUDRATE 115200
 
 uint16_t low_counter = 0; // 2 bytes
 unsigned int high_counter = 0; // 4 bytes for esp8266
@@ -49,15 +48,7 @@ void read_counters_from_eeprom() {
     int _low_counter = ((unsigned char)(EEPROM.read(4)) << 8) + (unsigned char)EEPROM.read(5);
     if (_low_counter<MAX_COUNTER_LOW_NUMBER) {
         low_counter=_low_counter;
-        if (_debug) {
-            Serial.print("EEPROM _low_counter= ");
-            Serial.println(_low_counter,DEC);
-        }
         int _high_counter = ((unsigned char)(EEPROM.read(6)) << 24) + ((unsigned char)(EEPROM.read(7)) << 16) + ((unsigned char)(EEPROM.read(8)) << 8) + (unsigned char)EEPROM.read(9);
-        if (_debug) {
-            Serial.print("EEPROM _high_counter= ");
-            Serial.println(_high_counter,DEC);
-        }
         high_counter=_high_counter;
     }
     //EEPROM.end();
@@ -83,31 +74,14 @@ void gtw_search() {
     ip = (~WiFi.subnetMask()) | WiFi.gatewayIP();
     gtw_ip=0;
     while (gtw_ip == 0) {
-        if (_debug) {
-            Serial.println("sending broadcast:");
-            Serial.println(ip[0],DEC);
-            Serial.println(ip[1],DEC);
-            Serial.println(ip[2],DEC);
-            Serial.println(ip[3],DEC);
-        }
         if (_udp.beginPacket(ip, udp_port)) {
             _udp.write(UDP_GTW_PING);
             _udp.endPacket();
-            if (_debug) {
-                Serial.println("...");
-            }
             delay(1500);
             int sz = _udp.parsePacket();
-            if (_debug) {
-                Serial.print("sz=");
-                Serial.println(sz,DEC);
-            }
             if (sz==UDP_GTW_OK_SIZE) {
                 _udp.read(gtw_ok_buffer,UDP_GTW_OK_SIZE);
                 if (memcmp(gtw_ok_buffer, UDP_GTW_OK, UDP_GTW_OK_SIZE) == 0) {
-                    if (_debug) {
-                        Serial.println("found semiot-gateway!");
-                    }
                     ip=_udp.remoteIP();
                     break;
                 }
@@ -130,30 +104,9 @@ void reconnect_to_wlan() {
         delay(4000);
         // Check if WiFi is already connected and if not, begin the WPS process.
         if (WiFi.status() != WL_CONNECTED) {
-            if (_debug) {
-                Serial.println("\nAttempting connection ...");
-            }
             WiFi.beginWPSConfig();
             // Another long delay required.
             delay(3000);
-            if (WiFi.status() == WL_CONNECTED) {
-                if (_debug) {
-                    Serial.println("Connected!");
-                    Serial.println(WiFi.localIP());
-                    Serial.println(WiFi.SSID());
-                    Serial.println(WiFi.macAddress());
-                }
-            }
-            else {
-                if (_debug) {
-                    Serial.println("Connection failed!");
-                }
-            }
-        }
-        else {
-            if (_debug) {
-                Serial.println("\nConnection already established.");
-            }
         }
     }
     WiFi.macAddress(mac);
@@ -166,7 +119,6 @@ void reconnect_to_wlan() {
 
 // TODO: separate to lib:
 //------------------------------------------------
-#define DEBUG_BAUDRATE 115200
 // RS485 PROTOCOL:
 #define SerialTxControl 2 // GPIO 2
 #define RS485Transmit    HIGH
@@ -216,9 +168,11 @@ const unsigned char crc8tab[256] = {
 void sendByteToRS485(int outByte) {
     digitalWrite(SerialTxControl, RS485Transmit);
     if (_debug) {
-        Serial.print("0x");
-        Serial.print(outByte,HEX);
-        Serial.print(" ");
+        _udp.beginPacket(ip, udp_port);
+        _udp.write("0d");
+        _udp.write(outByte+'0');
+        _udp.write(" ");
+        _udp.endPacket();
     }
     Serial.write(outByte);
     Serial.flush();
@@ -319,11 +273,12 @@ void setup() {
     EEPROM.begin(16);
     Serial.begin(CE_BAUDRATE);
     pinMode(SerialTxControl, OUTPUT);
-    read_counters_from_eeprom();
     digitalWrite(SerialTxControl, RS485Receive);
     reconnect_to_wlan();
     if (_debug) {
-        Serial.println("Setup completed, waiting for rising input");
+        _udp.beginPacket(ip, udp_port);
+        _udp.write("Setup completed");
+        _udp.endPacket();
     }
 }
 
@@ -331,68 +286,51 @@ void loop() {
     delay(5000);
     if (need_to_reconnect==true) {
         need_to_reconnect = false;
-        reconnect_to_wlan();
+        //reconnect_to_wlan(); //TODO:
     }
 
     if (_debug) {
-        Serial.println("");
-        Serial.println("Sending command:");
+        _udp.beginPacket(ip, udp_port);
+        _udp.write("Sending command:");
+        _udp.endPacket();
     }
     ReadTariffSum(1363); // FIXME: magic numbers
-    if (_debug) {
-        Serial.println("");
-    }
 
     delay(1000);
 
-    unsigned char _buf_size = 4; // ReadTariffSumAnsSize
+    unsigned char _buf_size = 15; // ReadTariffSumAnsSize: 4 + 11
     unsigned char _buf[_buf_size];
-    int _b = 0;
-    while ( Serial.available()!=0) {
-        int inByte = Serial.read();
-        if (_debug) {
-            Serial.print("0x");
-            Serial.print(inByte,HEX);
-            Serial.print(" ");
-        }
-        if ((inByte>-1) & (inByte<256) & (_b<_buf_size)) {
-            _buf[_b]=inByte;
-            _b++;
-        }
-        else {
-            _b=0;
-        }
+    int _b=0;
+
+    while (Serial.available()) {
+        _buf[_b]=Serial.read();
+        _b++;
     }
-    if (_b==_buf_size) {
-        low_counter=0;
-        high_counter=_buf[0]<<24+_buf[1]<<16+_buf[2]<<8+_buf[3];
-        counter_changed=true;
-    }
+    low_counter=0;
+    // TODO: checksum, etc
+    high_counter=_buf[12]<<24+_buf[11]<<16+_buf[10]<<8+_buf[9];
+    counter_changed=true;
 
     if (counter_changed==true) {
         counter_changed=false;
-        write_counters_to_eeprom();
         // send some data
         if (WiFi.status() == WL_CONNECTED) {
-            if (!_udp.beginPacket(ip, udp_port)) {
-                need_to_reconnect==true; // FIXME
-            }
-            _udp.write(MODEL_WORD);
-            _udp.write((low_counter >> 8) & 0xFF);
-            _udp.write((low_counter >> 0) & 0xFF);
+            if (_udp.beginPacket(ip, udp_port)) {
+                _udp.write(MODEL_WORD);
+                _udp.write((low_counter >> 8) & 0xFF);
+                _udp.write((low_counter >> 0) & 0xFF);
 
-            _udp.write((high_counter >> 24) & 0xFF);
-            _udp.write((high_counter >> 16) & 0xFF);
-            _udp.write((high_counter >> 8) & 0xFF);
-            _udp.write((high_counter >> 0) & 0xFF);
-            _udp.write(mac[0]);
-            _udp.write(mac[1]);
-            _udp.write(mac[2]);
-            _udp.write(mac[3]);
-            _udp.write(mac[4]);
-            _udp.write(mac[5]);
-            if (_udp.endPacket()) {
-                need_to_reconnect==true; // FIXME
+                _udp.write((high_counter >> 24) & 0xFF);
+                _udp.write((high_counter >> 16) & 0xFF);
+                _udp.write((high_counter >> 8) & 0xFF);
+                _udp.write((high_counter >> 0) & 0xFF);
+                _udp.write(mac[0]);
+                _udp.write(mac[1]);
+                _udp.write(mac[2]);
+                _udp.write(mac[3]);
+                _udp.write(mac[4]);
+                _udp.write(mac[5]);
+                _udp.endPacket();
             }
             if (_debug) {
                 Serial.print("counter = ");
