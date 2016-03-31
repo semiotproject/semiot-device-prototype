@@ -1,6 +1,5 @@
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
-#include <EEPROM.h>
 
 // FORMAT:
 // "WORD" (4B)
@@ -21,7 +20,7 @@
 #define DEBUG_LED_DARK HIGH
 
 bool _debug = false;
-bool _debug_led = true;
+bool _debug_led = false;
 
 #define MAX_COUNTER_LOW_NUMBER 1
 
@@ -40,35 +39,9 @@ const int udp_port = 44444;
 char gtw_ok_buffer[UDP_GTW_OK_SIZE];
 char gtw_ip;
 
-void read_counters_from_eeprom() {
-    //EEPROM.begin(16);
-    // TODO: "DEV_WORD and newline"
-    // NOTE: platform specific:
-    // FIXME: magic numbers from packet format:
-    int _low_counter = ((unsigned char)(EEPROM.read(4)) << 8) + (unsigned char)EEPROM.read(5);
-    if (_low_counter<MAX_COUNTER_LOW_NUMBER) {
-        low_counter=_low_counter;
-        int _high_counter = ((unsigned char)(EEPROM.read(6)) << 24) + ((unsigned char)(EEPROM.read(7)) << 16) + ((unsigned char)(EEPROM.read(8)) << 8) + (unsigned char)EEPROM.read(9);
-        high_counter=_high_counter;
-    }
-    //EEPROM.end();
-}
-
-void write_counters_to_eeprom() {
-    // NOTE: platform specific:
-    // TODO: "DEV_WORD and newline"
-    // FIXME: magic numbers from packet format:
-    //EEPROM.begin(16);
-    EEPROM.write(4,(low_counter >> 8) & 0xFF);
-    EEPROM.write(5,(low_counter >> 0) & 0xFF);
-
-    EEPROM.write(6,(high_counter >> 24) & 0xFF);
-    EEPROM.write(7,(high_counter >> 16) & 0xFF);
-    EEPROM.write(8,(high_counter >> 8) & 0xFF);
-    EEPROM.write(9,(high_counter >> 0) & 0xFF);
-    EEPROM.commit();
-    //EEPROM.end();
-}
+#define M_BUF_SIZE 15
+int _m_buf[M_BUF_SIZE];
+int _m_buf_count=0;
 
 void gtw_search() {
     ip = (~WiFi.subnetMask()) | WiFi.gatewayIP();
@@ -165,18 +138,17 @@ const unsigned char crc8tab[256] = {
 0x11,0xa4,0xce,0x7b,0x1a,0xaf,0xc5,0x70,0x7 ,0xb2,0xd8,0x6d,0xc ,0xb9,0xd3,0x66 };
 
 
-void sendByteToRS485(int outByte) {
+void sendByteToRS485(uint16_t outByte) {
     digitalWrite(SerialTxControl, RS485Transmit);
     if (_debug) {
         _udp.beginPacket(ip, udp_port);
-        _udp.write("0d");
-        _udp.write(outByte+'0');
-        _udp.write(" ");
+        _udp.write(outByte);
         _udp.endPacket();
     }
     Serial.write(outByte);
     Serial.flush();
     digitalWrite(SerialTxControl, RS485Receive);
+    delay(1000);
 }
 
 void startCePacket() {
@@ -187,7 +159,7 @@ void endCEPacket() {
     sendByteToRS485(END_CH);
 }
 
-void sendByteToCE(int outByte) {
+void sendByteToCE(uint16_t outByte) {
     if (outByte==END_CH) {
         sendByteToRS485(END_REPL_1_CH);
         sendByteToRS485(END_REPL_2_CH);
@@ -246,16 +218,16 @@ void sendCommandToCE(int AddrD, int Command) {
     endCEPacket();
 }
 
-void Ping(int AddrD) {
+void Ping(uint16_t AddrD) {
     sendCommandToCE(AddrD, Ping_Command);
 }
 
-void ReadSerialNumber(int AddrD) {
+void ReadSerialNumber(uint16_t AddrD) {
     sendCommandToCE(AddrD, ReadSerialNumber_Command);
 }
 
 // TODO: additional param
-void ReadTariffSum(int AddrD) {
+void ReadTariffSum(uint16_t AddrD) {
     sendCommandToCE(AddrD, ReadTariffSum_Command);
 }
 
@@ -270,7 +242,10 @@ void BadCommand() {
 
 
 void setup() {
-    EEPROM.begin(16);
+    if (_debug_led) {
+        pinMode(DEBUG_LED_PIN, OUTPUT);
+    }
+    //EEPROM.begin(16);
     Serial.begin(CE_BAUDRATE);
     pinMode(SerialTxControl, OUTPUT);
     digitalWrite(SerialTxControl, RS485Receive);
@@ -283,64 +258,26 @@ void setup() {
 }
 
 void loop() {
-    delay(5000);
-    if (need_to_reconnect==true) {
-        need_to_reconnect = false;
-        //reconnect_to_wlan(); //TODO:
-    }
+    delay(3000);
+    if (Serial.available()) {
 
-    if (_debug) {
+        while (Serial.available()!=0) {
+            if (_m_buf_count<M_BUF_SIZE) {
+                _m_buf[_m_buf_count]=Serial.read();
+                _m_buf_count++;
+            }
+
+
+        }
         _udp.beginPacket(ip, udp_port);
-        _udp.write("Sending command:");
+        for (int x=0;x<_m_buf_count;x++) {
+            _udp.write(_m_buf[x]);
+        }
         _udp.endPacket();
     }
-    ReadTariffSum(1363); // FIXME: magic numbers
-
-    delay(1000);
-
-    unsigned char _buf_size = 15; // ReadTariffSumAnsSize: 4 + 11
-    unsigned char _buf[_buf_size];
-    int _b=0;
-
-    while (Serial.available()) {
-        _buf[_b]=Serial.read();
-        _b++;
-    }
-    low_counter=0;
-    // TODO: checksum, etc
-    high_counter=_buf[12]<<24+_buf[11]<<16+_buf[10]<<8+_buf[9];
-    counter_changed=true;
-
-    if (counter_changed==true) {
-        counter_changed=false;
-        // send some data
-        if (WiFi.status() == WL_CONNECTED) {
-            if (_udp.beginPacket(ip, udp_port)) {
-                _udp.write(MODEL_WORD);
-                _udp.write((low_counter >> 8) & 0xFF);
-                _udp.write((low_counter >> 0) & 0xFF);
-
-                _udp.write((high_counter >> 24) & 0xFF);
-                _udp.write((high_counter >> 16) & 0xFF);
-                _udp.write((high_counter >> 8) & 0xFF);
-                _udp.write((high_counter >> 0) & 0xFF);
-                _udp.write(mac[0]);
-                _udp.write(mac[1]);
-                _udp.write(mac[2]);
-                _udp.write(mac[3]);
-                _udp.write(mac[4]);
-                _udp.write(mac[5]);
-                _udp.endPacket();
-            }
-            if (_debug) {
-                Serial.print("counter = ");
-                Serial.println(low_counter,DEC);
-                Serial.print("high counter = ");
-                Serial.println(high_counter,DEC);
-            }
-        }
-        else {
-            need_to_reconnect==true;
-        }
-    }
+    //digitalWrite(SerialTxControl, RS485Transmit);
+    //delay(500);
+    ReadTariffSum(1363);
+    //delay(500);
+    //digitalWrite(SerialTxControl, RS485Receive);
 }

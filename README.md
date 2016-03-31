@@ -2,7 +2,7 @@
 
 Based on [esp8266 Arduino IDE libraries](https://github.com/esp8266/Arduino)
 
-## *How to flash ESP8266
+## How to flash ESP8266
 If you don't have the USB TTL converter to connect the esp8266 directly to your machine
 and have the arduino board,
 try to use the built-in arduino usb-ttl converter similar to the scheme:
