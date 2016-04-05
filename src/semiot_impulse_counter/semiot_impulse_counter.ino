@@ -10,6 +10,7 @@
 // Valtec VLF-R-I: "VLFR"
 // Incotex Mercury M201: "M201"
 char _modelWord[] = "VLFR";
+char _idWord[] = "AAA1";
 
 #define PULSE_PIN 2 // GPIO2
 
@@ -17,7 +18,7 @@ char _modelWord[] = "VLFR";
 // debug led to VCC:
 #define DEBUG_LED_LIGHT LOW
 #define DEBUG_LED_DARK HIGH
-#define DEBUG_LED_PIN 0 // GPIO0; -1 to disable
+#define DEBUG_LED_PIN -1 // GPIO0; -1 to disable
 HardwareSerial *_debugSerial = &Serial;
 
 WiFiUDP _udp;
@@ -66,5 +67,5 @@ void loop() {
     if (_needToReconnect) {
         connectToWPS(NULL,DEBUG_LED_PIN); // TODO: async via udp SoftAP
     }
-    semiotGtwClient->sendCounters(_modelWord,&_counter,&_counterChanged,&_needToReconnect);
+    semiotGtwClient->sendCounters(_modelWord,_idWord,&_counter,&_counterChanged,&_needToReconnect);
 }
