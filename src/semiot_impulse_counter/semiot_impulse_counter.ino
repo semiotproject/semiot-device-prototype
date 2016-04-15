@@ -19,7 +19,7 @@ char _idWord[] = "AAA1";
 #define DEBUG_LED_LIGHT LOW
 #define DEBUG_LED_DARK HIGH
 #define DEBUG_LED_PIN -1 // GPIO0; -1 to disable
-HardwareSerial *_debugSerial = &Serial;
+HardwareSerial *_debugSerial = NULL;// = &Serial;
 
 WiFiUDP _udp;
 int _udpPort = 33333;
@@ -51,21 +51,24 @@ void setup() {
     if (_debugSerial) {
         Serial.println("Trying to connect to WPS");
     }
-    while (WiFi.status() != WL_CONNECTED) {
-        connectToWPS(_debugSerial,DEBUG_LED_PIN); // TODO: async via udp SoftAP
-    }
+    // _debugSerial,DEBUG_LED_PIN:
+    connectToWPS(); // TODO: async via udp SoftAP
     if (_debugSerial) {
         Serial.println("Connected via WPS, searching for local server");
     }
-    semiotGtwClient->connectToSemIoTGateway();
+    // semiotGtwClient->connectToSemIoTGateway();
     if (_debugSerial) {
         Serial.println("Setup completed");
     }
 }
 
 void loop() {
+    /*
     if (_needToReconnect) {
         connectToWPS(NULL,DEBUG_LED_PIN); // TODO: async via udp SoftAP
     }
+    */
+    _counterChanged=true; // :trollface:
     semiotGtwClient->sendCounters(_modelWord,_idWord,&_counter,&_counterChanged,&_needToReconnect);
+    delay(5000);
 }
