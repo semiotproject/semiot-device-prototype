@@ -23,4 +23,3 @@ src/microcoap_impulse_counter/microcoap_impulse_counter.ino
 src/microcoap_impulse_counter/connections.h
 src/microcoap_impulse_counter/endpoints.h
 src/microcoap_impulse_counter/endpoints.c
-

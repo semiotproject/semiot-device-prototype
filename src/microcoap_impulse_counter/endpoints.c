@@ -5,8 +5,21 @@
 
 static char light = '0';
 static uint32_t tick = 0;
-const uint16_t rsplen = 1500;
-static char rsp[1500] = "";
+// FIXME: magic numbers
+#define mac_len 6
+#define str_len 32
+#define pass_len 64
+#define rsplen 1500
+
+// 74:E5:43:DC:B7:E6
+static uint8_t mac[mac_len] = {0x74,0xE5,0x43,0xDC,0xB7,0xE6};
+static char model[str_len] = "MRCR";
+static char serial[str_len] = "SMT1";
+static char ap_ssid[str_len];
+static char sta_ssid[str_len];
+static char ap_pass[pass_len];
+static char sta_pass[pass_len];
+static char rsp[rsplen] = "";
 void build_rsp(void);
 
 #ifdef ARDUINO
@@ -72,6 +85,7 @@ static int handle_put_light(coap_rw_buffer_t *scratch, const coap_packet_t *inpk
 static const coap_endpoint_path_t path_tick = {1, {"tick"}};
 static int handle_get_tick(coap_rw_buffer_t *scratch, const coap_packet_t *inpkt, coap_packet_t *outpkt, uint8_t id_hi, uint8_t id_lo)
 {
+    tick++; // FIXME
     // FIXME: magic size?
     return coap_make_response(scratch, outpkt, (const uint32_t *)&tick, 4, id_hi, id_lo, &inpkt->tok, COAP_RSPCODE_CONTENT, COAP_CONTENTTYPE_TEXT_PLAIN);
 }
@@ -86,12 +100,104 @@ static int handle_put_tick(coap_rw_buffer_t *scratch, const coap_packet_t *inpkt
 }
 //////////////////////////////////////
 //////////////////////////////////////
+static const coap_endpoint_path_t path_model = {1, {"model"}};
+int handle_get_model(coap_rw_buffer_t *scratch, const coap_packet_t *inpkt, coap_packet_t *outpkt, uint8_t id_hi, uint8_t id_lo)
+{
+    return coap_make_response(scratch, outpkt, (const char *)&model, str_len, id_hi, id_lo, &inpkt->tok, COAP_RSPCODE_CONTENT, COAP_CONTENTTYPE_TEXT_PLAIN);
+}
+
+int handle_put_model(coap_rw_buffer_t *scratch, const coap_packet_t *inpkt, coap_packet_t *outpkt, uint8_t id_hi, uint8_t id_lo)
+{
+
+}
+
+//////////////////////////////////////
+//////////////////////////////////////
+static const coap_endpoint_path_t path_serial = {1, {"serial"}};
+int handle_get_serial(coap_rw_buffer_t *scratch, const coap_packet_t *inpkt, coap_packet_t *outpkt, uint8_t id_hi, uint8_t id_lo)
+{
+    return coap_make_response(scratch, outpkt, (const char *)&serial, str_len, id_hi, id_lo, &inpkt->tok, COAP_RSPCODE_CONTENT, COAP_CONTENTTYPE_TEXT_PLAIN);
+}
+
+int handle_put_serial(coap_rw_buffer_t *scratch, const coap_packet_t *inpkt, coap_packet_t *outpkt, uint8_t id_hi, uint8_t id_lo)
+{
+
+}
+
+//////////////////////////////////////
+//////////////////////////////////////
+static const coap_endpoint_path_t path_mac = {1, {"mac"}};
+int handle_get_mac(coap_rw_buffer_t *scratch, const coap_packet_t *inpkt, coap_packet_t *outpkt, uint8_t id_hi, uint8_t id_lo)
+{
+    return coap_make_response(scratch, outpkt, (const uint8_t *)&mac, mac_len, id_hi, id_lo, &inpkt->tok, COAP_RSPCODE_CONTENT, COAP_CONTENTTYPE_TEXT_PLAIN);
+}
+
+//////////////////////////////////////
+//////////////////////////////////////
+static const coap_endpoint_path_t path_ap_ssid = {1, {"ap_ssid"}};
+int handle_get_ap_ssid(coap_rw_buffer_t *scratch, const coap_packet_t *inpkt, coap_packet_t *outpkt, uint8_t id_hi, uint8_t id_lo)
+{
+    return coap_make_response(scratch, outpkt, (const char *)&ap_ssid, str_len, id_hi, id_lo, &inpkt->tok, COAP_RSPCODE_CONTENT, COAP_CONTENTTYPE_TEXT_PLAIN);
+}
+
+int handle_put_ap_ssid(coap_rw_buffer_t *scratch, const coap_packet_t *inpkt, coap_packet_t *outpkt, uint8_t id_hi, uint8_t id_lo)
+{
+
+}
+
+//////////////////////////////////////
+//////////////////////////////////////
+
+int handle_get_ap_pass(coap_rw_buffer_t *scratch, const coap_packet_t *inpkt, coap_packet_t *outpkt, uint8_t id_hi, uint8_t id_lo)
+{
+
+}
+
+int handle_put_ap_pass(coap_rw_buffer_t *scratch, const coap_packet_t *inpkt, coap_packet_t *outpkt, uint8_t id_hi, uint8_t id_lo)
+{
+
+}
+
+//////////////////////////////////////
+//////////////////////////////////////
+static const coap_endpoint_path_t path_sta_ssid = {1, {"sta_ssid"}};
+int handle_get_sta_ssid(coap_rw_buffer_t *scratch, const coap_packet_t *inpkt, coap_packet_t *outpkt, uint8_t id_hi, uint8_t id_lo)
+{
+    return coap_make_response(scratch, outpkt, (const char *)&sta_ssid, str_len, id_hi, id_lo, &inpkt->tok, COAP_RSPCODE_CONTENT, COAP_CONTENTTYPE_TEXT_PLAIN);
+}
+
+int handle_put_sta_ssid(coap_rw_buffer_t *scratch, const coap_packet_t *inpkt, coap_packet_t *outpkt, uint8_t id_hi, uint8_t id_lo)
+{
+
+}
+
+//////////////////////////////////////
+//////////////////////////////////////
+
+int handle_get_sta_pass(coap_rw_buffer_t *scratch, const coap_packet_t *inpkt, coap_packet_t *outpkt, uint8_t id_hi, uint8_t id_lo)
+{
+
+}
+
+int handle_put_sta_pass(coap_rw_buffer_t *scratch, const coap_packet_t *inpkt, coap_packet_t *outpkt, uint8_t id_hi, uint8_t id_lo)
+{
+
+}
+
+
+//////////////////////////////////////
+//////////////////////////////////////
 
 const coap_endpoint_t endpoints[] =
 {
     {COAP_METHOD_GET, handle_get_well_known_core, &path_well_known_core, "ct=40"},
-    {COAP_METHOD_GET, handle_get_tick, &path_tick, "ct=0"},
+    {COAP_METHOD_GET, handle_get_tick, &path_tick, "ct=42"},
     {COAP_METHOD_PUT, handle_put_tick, &path_tick, NULL},
+    {COAP_METHOD_GET, handle_get_mac, &path_mac, "ct=42"},
+    {COAP_METHOD_GET, handle_get_model, &path_model, "ct=0"},
+    {COAP_METHOD_PUT, handle_put_model, &path_model, NULL},
+    {COAP_METHOD_GET, handle_get_serial, &path_serial, "ct=0"},
+    {COAP_METHOD_PUT, handle_put_serial, &path_serial, NULL},
     {COAP_METHOD_GET, handle_get_light, &path_light, "ct=0"},
     {COAP_METHOD_PUT, handle_put_light, &path_light, NULL},
     {(coap_method_t)0, NULL, NULL, NULL}
@@ -138,3 +244,19 @@ void build_rsp(void)
     }
 }
 
+
+uint32_t get_tick()
+{
+    return tick;
+}
+
+int set_tick(uint32_t value)
+{
+    tick = value;
+}
+
+int set_model()
+{
+    // TODO:
+    // memcpy(&tick, inpkt->payload.p, 4);
+}

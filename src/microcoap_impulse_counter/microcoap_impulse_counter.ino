@@ -2,6 +2,8 @@
 * WARNING - UDP_TX_PACKET_MAX_SIZE is hardcoded by Arduino to 24 bytes
 * This limits the size of possible outbound UDP packets
 */
+#include <EEPROM.h>
+#include "EEPROMAnything.h"
 
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
@@ -29,18 +31,35 @@ int rc;
 coap_packet_t pkt;
 int i;
 
+struct savedData_t
+{
+    char light;
+    uint16_t tick;
+    String ap_ssid;
+    String ap_password;
+    String sta_ssid;
+    String sta_password;
+} device_data;
+
+void iterateTick() {
+    increment_tick();
+}
+
 void setup()
 {
     ESP.eraseConfig();
+    EEPROM_readAnything(0, device_data);
+    device_data.ap_ssid = "M201";
+    device_data.ap_password = "Str0ngHack3rPa$$";
     Serial.begin(115200);
     // attachInterrupt(digitalPinToInterrupt(PULSE_PIN), increment_tick, RISING);
-    WiFi.mode(WIFI_STA); // WIFI_AP, WIFI_STA, WIFI_AP_STA
+    WiFi.mode(WIFI_AP_STA); // WIFI_AP, WIFI_STA, WIFI_AP_STA
     // TODO: while not connected
-    Serial.println("connecting to ISST");
+    WiFi.softAPConfig(device_data.ap_ssid, device_data.ap_password);
     WiFi.begin(sta_ssid.c_str(),sta_password.c_str());
-    Serial.println("connecting to ISST");
     coap_setup();
     endpoint_setup();
+
     udp.begin(PORT);
     Serial.println("setup completed");
 }
