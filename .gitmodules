@@ -1,3 +1,3 @@
-[submodule "minicoap"]
+[submodule "libraries/minicoap"]
 	path = libraries/minicoap
-	url = https://github.com/semiotproject/minicoap.git
+	url = git@github.com:semiotproject/minicoap.git
