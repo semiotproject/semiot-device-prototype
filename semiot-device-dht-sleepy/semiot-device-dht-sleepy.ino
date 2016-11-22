@@ -18,7 +18,14 @@ void updateDHT() {
     humidityRes.setValue(dht22.readHumidity());
 }
 
+// you don't need it
+void additionalHighPin() {
+    pinMode(D6,OUTPUT);
+    digitalWrite(D6,HIGH);
+}
+
 void setup() {
+    additionalHighPin(); //FIXME
     dht22.begin(dht22Pin,DHT22);
     coap.setButton(buttonPin);
     coap.addResource(&temperatureRes);

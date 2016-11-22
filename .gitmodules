@@ -1,3 +1,9 @@
 [submodule "libraries/minicoap"]
 	path = libraries/minicoap
 	url = git@github.com:semiotproject/minicoap.git
+[submodule "esp8266"]
+	path = esp8266
+	url = git@github.com:esp8266/Arduino.git
+[submodule "makeEspArduino"]
+	path = makeEspArduino
+	url = git@github.com:plerup/makeEspArduino.git
