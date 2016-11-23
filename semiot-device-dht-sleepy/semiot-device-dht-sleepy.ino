@@ -30,10 +30,10 @@ void setup() {
     coap.setButton(buttonPin);
     coap.addResource(&temperatureRes);
     coap.addResource(&humidityRes);
-    coap.begin(true); // sleepy
+    coap.begin(false); // sleepy = true
 }
 
 void loop() {
-    updateDHT();
+    // updateDHT();
     coap.handleClient();
 }
